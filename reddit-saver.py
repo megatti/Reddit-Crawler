@@ -60,7 +60,7 @@ def get_comment_info(comment):
     return post_info
 
 
-FIELDNAMES_POST = ("title", "author", "permalink", "url", "subreddit", 
+FIELDNAMES_POSTS = ("title", "author", "permalink", "url", "subreddit", 
                    "is_self", "is_nsfw", "created_at", "id")
 FIELDNAMES_COMMENTS = ("author", "body", "permalink", "subreddit", "created_at", "id")
 
@@ -68,12 +68,11 @@ FIELDNAMES_COMMENTS = ("author", "body", "permalink", "subreddit", "created_at",
 def append_post_csv(rows, filename="posts.csv"):
     with open(filename, "a+", encoding="utf-8", newline="") as csvfile:
         reader = csv.reader(csvfile)
-        writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES_POST)  # used fieldnames as header
+        writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES_POSTS)  # used fieldnames as header
 
         # if no lines, then write headers first
         if not len(list(reader)):
             writer.writeheader()  # this only needs to happen on initial writing
-        writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES_POST)  # used fieldnames as header
         writer.writerows(rows)
 
 
@@ -85,13 +84,41 @@ def append_comment_csv(rows, filename="comments.csv"):
         # if no lines, then write headers first
         if not len(list(reader)):
             writer.writeheader()  # this only needs to happen on initial writing
-        writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES_COMMENTS)  # used fieldnames as header
         writer.writerows(rows)
 
 
-async def crawl():
-    # Set up Reddit object
+def load(posts_filename="posts.csv", comments_filename="comments.csv"):
+    """
+    Load post / comment ids into a set to be used for duplicate checking.
+    """
+    comments_ids = set()
+    posts_ids = set()
+
+    try:
+        with open(posts_filename, "r", encoding="utf-8") as posts_csvfile:
+            posts_reader = csv.DictReader(posts_csvfile, FIELDNAMES_POSTS)
+            for row in posts_reader:
+                posts_ids.add(row["id"])
+    except FileNotFoundError:
+        pass
+
+    try:
+        with open(comments_filename, "r", encoding="utf-8") as comments_csvfile:
+            comments_reader = csv.DictReader(posts_csvfile, FIELDNAMES_COMMENTS)
+            for row in comments_reader:
+                comments_ids.add(row["id"])
+    except FileNotFoundError:
+        pass
+
+    return posts_ids, comments_ids
+
+
+async def crawl(posts_filename = "posts.csv", comments_filename = "comments.csv"):
+    # Set up Reddit object - TODO: Error handling with connection
     reddit = load_reddit()
+
+    # Load previously saved posts
+    posts_ids, comments_ids = load()
 
     # Get saved posts
     saved = await get_saved(reddit)
